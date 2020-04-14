@@ -55,11 +55,11 @@ def do_logistic_regression(tr_X, tr_t, te_X, te_t, do_plot=False):
 
     if do_plot:
         print('[-] do plot')
-        x_space = np.linspace(-15,20,10)
-        y_space = np.linspace(-4, 12, 10)
+        x_space = np.linspace(-15,20,500)
+        y_space = np.linspace(-4, 12, 500)
         X, Y = np.meshgrid(x_space,y_space)
         XY = np.dstack((X,Y)).reshape((-1,2))
-        prob = model.predict_proba(XY).reshape((10, 10, 3))
+        prob = model.predict_proba(XY).reshape((500, 500, 3))
         #print(prob.shape) # probability of each class
 
         ind_t1 = np.where(te_t_pred == 1.)[0]
