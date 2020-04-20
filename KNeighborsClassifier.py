@@ -54,7 +54,7 @@ def main():
     te_X_ex = te_X[:, [9, 11]]
     i=1
     while i <= 100:
-        accuracies.append(do_KNN(i,tr_X_ex, tr_t, te_X_ex, te_t,'Nu :'+str(i) ))
+        accuracies.append(do_KNN(i,tr_X_ex, tr_t, te_X_ex, te_t,'K :'+str(i) ))
         i = i+1
 
     plt.plot(range(1,101),accuracies)
