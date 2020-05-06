@@ -48,8 +48,6 @@ K의 수가 2일 때 가장 높은 결과를 보임.
 Decision Tree Classifier
 -------------------------
 
-![Alt text](DTC.PNG)
-
 feature 별 importance 출력
 ![Alt text](dtc_importance.png)
 
