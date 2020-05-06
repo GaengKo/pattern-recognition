@@ -49,3 +49,24 @@ Decision Tree Classifier
 -------------------------
 
 ![Alt text](DTC.PNG)
+
+feature 별 importance 출력
+![Alt text](dtc_importance.png)
+
+최종 결과 트리 맵
+![Alt text](dtc_map.png)
+
+Multi layer perceptron
+--------------------------
+
+sklearn digits Dataset 사용
+
+![Alt text](mlp_dataset.png)
+
+1번째 레이어의 weight visualization 결과
+
+![Alt text](mlp_visualization.png)
+
+최종 Score ( Layer의 Size : 200, 200, 200)
+
+![Alt text](mlp_result.png)
