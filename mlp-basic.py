@@ -17,3 +17,6 @@ model.compile(optimizer='sgd',loss='sparse_categorical_crossentropy',metrics=['a
 model.summary()
 
 
+model.fit(tr_X,tr_t,epochs=4)
+accuracy = model.evaluate(te_X,te_t)
+print(accuracy)
