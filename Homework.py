@@ -5,7 +5,7 @@ import os
 from PIL import Image
 from sklearn.model_selection import train_test_split
 import random
-
+from keras import backend as K
 class load_data:
     def __init__(self):
         self.X = []
@@ -45,7 +45,7 @@ class Custom_CNN:
         self.model = tf.keras.Sequential(self._build_layers())
         #self.model.compile(optimizer='adam',  loss=self._binary_loss , metrics=[self._binary_accuracy])
         self.model.compile(optimizer='adam',  loss=self._sparse_loss , metrics=[self._sparse_accuracy])
-        self.model.compile(optimizer='adam',  loss=self._sum_loss , metrics=[self._binary_accuracy, self._sparse_accuracy])
+        self.model.compile(optimizer='adam',  loss=self._sum_loss , metrics=[self._binary_accuracy, self._sparse_accuracy, self.precision,self.recall,self.f1score])
 
     def _sum_loss(self, y_true, y_pred):
         return (self._binary_loss(y_true,y_pred)+self._sparse_loss(y_true,y_pred))/2.
@@ -57,7 +57,6 @@ class Custom_CNN:
         y_pred = tf.split(y_pred,6,1)[0]
 
         y_pred = tf.clip_by_value(tf.nn.sigmoid(y_pred),0.001,0.999) #일정 epochs 이후 loss가 nan으로 발생하는 문제 발견
-        #return tf.keras.losses.binary_crossentropy(y_true,y_pred)
         return -tf.reduce_mean(
             tf.reduce_sum(
                 tf.multiply(y_true, tf.math.log(y_pred)) + tf.multiply(1-y_true, tf.math.log(1-y_pred)),1))
@@ -72,7 +71,6 @@ class Custom_CNN:
 
         y_pred = tf.slice(y_pred, [0, 1], [-1, 5])
         y_pred = tf.nn.softmax(y_pred, 1)
-
         return -tf.reduce_mean(
             tf.reduce_sum(
                 tf.multiply(y_true, tf.math.log(y_pred)), 1))
@@ -80,16 +78,18 @@ class Custom_CNN:
     def _build_layers(self):
         layers = [
             tf.keras.layers.Conv2D(32, (3,3), padding='SAME', activation='relu', input_shape=(200,200,3)),
-            tf.keras.layers.MaxPooling2D((2,2),(2,2),padding='SAME'),
             tf.keras.layers.Conv2D(32, (3, 3), padding='SAME', activation='relu'),
             tf.keras.layers.MaxPooling2D((2, 2), (2, 2), padding='SAME'),
             tf.keras.layers.Conv2D(64, (3, 3), padding='SAME', activation='relu'),
-            tf.keras.layers.MaxPooling2D((2, 2), (2, 2), padding='SAME'),
             tf.keras.layers.Conv2D(64, (3, 3), padding='SAME', activation='relu'),
             tf.keras.layers.MaxPooling2D((2, 2), (2, 2), padding='SAME'),
+            tf.keras.layers.Conv2D(128, (3, 3), padding='SAME', activation='relu'),
+            tf.keras.layers.Conv2D(128, (3, 3), padding='SAME', activation='relu'),
+            tf.keras.layers.Conv2D(128, (3, 3), padding='SAME', activation='relu'),
+            tf.keras.layers.MaxPooling2D((2, 2), (2, 2), padding='SAME'),
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(100, activation='relu'),
-            tf.keras.layers.Dense(30, activation='relu'),
+            tf.keras.layers.Dense(300, activation='relu'),
+            tf.keras.layers.Dense(60, activation='relu'),
             tf.keras.layers.Dense(6)
         ]
         return layers
@@ -118,6 +118,65 @@ class Custom_CNN:
         return tf.reduce_mean(
             tf.cast(
                 tf.equal(tf.argmax(y_true, 1), tf.argmax(y_pred, 1)), tf.float32))
+
+    def recall(self, y_true, y_pred):
+        y_true = tf.split(y_true, 2, 1)  # _my_loss랑 똑같은 텐서 분리 주석 참조
+        y_true = tf.cast(y_true[0], tf.float32)
+
+        y_pred = tf.split(y_pred, 6, 1)[0]
+        # clip(t, clip_value_min, clip_value_max) : clip_value_min~clip_value_max 이외 가장자리를 깎아 낸다
+        # round : 반올림한다
+        y_target_yn = K.round(K.clip(y_true, 0, 1))  # 실제값을 0(Negative) 또는 1(Positive)로 설정한다
+        y_pred_yn = K.round(K.clip(y_pred, 0, 1))  # 예측값을 0(Negative) 또는 1(Positive)로 설정한다
+
+        # True Positive는 실제 값과 예측 값이 모두 1(Positive)인 경우이다
+        count_true_positive = K.sum(y_target_yn * y_pred_yn)
+
+        # (True Positive + False Negative) = 실제 값이 1(Positive) 전체
+        count_true_positive_false_negative = K.sum(y_target_yn)
+
+        # Recall =  (True Positive) / (True Positive + False Negative)
+        # K.epsilon()는 'divide by zero error' 예방차원에서 작은 수를 더한다
+        recall = count_true_positive / (count_true_positive_false_negative + K.epsilon())
+
+        # return a single tensor value
+        return recall
+    def f1score(self,y_true, y_pred):
+        _recall = self.recall(y_true, y_pred)
+        _precision = self.precision(y_true, y_pred)
+        # K.epsilon()는 'divide by zero error' 예방차원에서 작은 수를 더한다
+        _f1score = (2 * _recall * _precision) / (_recall + _precision + K.epsilon())
+
+        # return a single tensor value
+        return _f1score
+    def precision(self, y_true, y_pred):
+        # clip(t, clip_value_min, clip_value_max) : clip_value_min~clip_value_max 이외 가장자리를 깎아 낸다
+        # round : 반올림한다
+        y_true = tf.split(y_true, 2, 1)  # _my_loss랑 똑같은 텐서 분리 주석 참조
+        y_true = tf.cast(y_true[0], tf.float32)
+
+        y_pred = tf.split(y_pred, 6, 1)[0]
+        y_pred_yn = K.round(K.clip(y_pred, 0, 1))  # 예측값을 0(Negative) 또는 1(Positive)로 설정한다
+        y_target_yn = K.round(K.clip(y_true, 0, 1))  # 실제값을 0(Negative) 또는 1(Positive)로 설정한다
+
+        # True Positive는 실제 값과 예측 값이 모두 1(Positive)인 경우이다
+        count_true_positive = K.sum(y_target_yn * y_pred_yn)
+
+        # (True Positive + False Positive) = 예측 값이 1(Positive) 전체
+        count_true_positive_false_positive = K.sum(y_pred_yn)
+
+        # Precision = (True Positive) / (True Positive + False Positive)
+        # K.epsilon()는 'divide by zero error' 예방차원에서 작은 수를 더한다
+        precision = count_true_positive / (count_true_positive_false_positive + K.epsilon())
+
+        # return a single tensor value
+        return precision
+
+    def _gender_precision(self,y_true,y_pred):
+        y_true = tf.split(y_true, 2, 1)  # _my_loss랑 똑같은 텐서 분리 주석 참조
+        y_true = tf.cast(y_true[0], tf.float32)
+        return precision_score(y_true, y_pred)
+
     def fit(self, x, t, epochs, te_x, te_y):
         self.history = self.model.fit(x, t, epochs=epochs,validation_data=(te_x,te_y))
 
@@ -139,18 +198,42 @@ def main():
         Y_train = Data.Y_train
         Y_test = Data.Y_test
 
+    print(X_train.shape)
+    X_train = np.vsplit(X_train,5)
+    Y_train = np.vsplit(Y_train,5)
+    X_train = np.concatenate((X_train[0],X_train[1],X_train[2],X_train[3]))
+    Y_train = np.concatenate((Y_train[0], Y_train[1], Y_train[2], Y_train[3]))
+    print(X_train.shape)
+
+
     #y_true = tf.slice(Y_train,[0,1],[-1,1])
     #print(y_true.shape)
     #y_true_0 = tf.cast(y_true[0], tf.int32)
     #print(y_true_0.shape)
     #y_true = tf.one_hot(y_true_0, depth=1, dtype=tf.float32)
     #print(y_true.shape)
+
     cnn = Custom_CNN()
     print(cnn.model.summary())
     X_train = (X_train.astype('float32') / 255.).reshape(-1, 200, 200, 3)
     X_test = (X_test.astype('float32') / 255.).reshape(-1, 200, 200, 3)
 
-    cnn.fit(X_train, Y_train, epochs=10,te_x=X_test,te_y=Y_test)
+    cnn.fit(X_train, Y_train, epochs=6,te_x=X_test,te_y=Y_test)
     print(cnn.evaluate(X_test, Y_test))
+    print(cnn.history.history)
+    his = cnn.history
+    plt.plot(his.history['loss'])
+    plt.plot(his.history['val_loss'])
+    plt.plot(his.history['_binary_accuracy'])
+    plt.plot(his.history['val__binary_accuracy'])
+    plt.plot(his.history['_sparse_accuracy'])
+    plt.plot(his.history['val__sparse_accuracy'])
+    plt.title('model loss')
+    plt.ylabel('loss')
+    plt.xlabel('epoch')
+    plt.legend(['loss', 'val_loss', 'sex_accuracy', 'val_sex_accuracy', 'region_accuracy', 'val_region_accuracy'], loc='upper left')
+    plt.show()
+    plt.savefig("data.jpg")
+
 if __name__ == '__main__':
     main()
