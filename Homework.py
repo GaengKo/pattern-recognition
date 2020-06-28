@@ -224,7 +224,7 @@ def main():
                                          Y_train[k_Fold_list[2]], Y_train[k_Fold_list[3]]))
         k_Fold_X_train = (k_Fold_X_train.astype('float32') / 255.).reshape(-1, 200, 200, 3)
         cnn = Custom_CNN()
-        cnn.fit(k_Fold_X_train, k_Fold_Y_train, epochs=5, te_x=X_test, te_y=Y_test)
+        cnn.fit(k_Fold_X_train, k_Fold_Y_train, epochs=5, te_x=k_Fold_X_test, te_y=k_Fold_Y_test)
         his = cnn.history
         print(cnn.evaluate(X_test, Y_test))
 
@@ -273,18 +273,6 @@ def main():
 
         plt.savefig("data_"+str(z+1)+".jpg")
         plt.close()
-    #X_train = np.concatenate((X_train[0],X_train[1],X_train[2],X_train[3]))
-    #Y_train = np.concatenate((Y_train[0], Y_train[1], Y_train[2], Y_train[3]))
-    #print(X_train.shape)
-
-
-    #y_true = tf.slice(Y_train,[0,1],[-1,1])
-    #print(y_true.shape)
-    #y_true_0 = tf.cast(y_true[0], tf.int32)
-    #print(y_true_0.shape)
-    #y_true = tf.one_hot(y_true_0, depth=1, dtype=tf.float32)
-    #print(y_true.shape)
-
 
 
     #confusion matrix
@@ -294,8 +282,7 @@ def main():
     for i in range(len(prediction)):
         temp = prediction[i][1:]
         index1 = np.argmax(temp)
-        #print(prediction[i])
-        #print(temp)
+
         _true = Y_test[i][1]
         num_of_lables[_true] = num_of_lables[_true]+1
         confusion[_true][index1] = confusion[_true][index1] + 1
