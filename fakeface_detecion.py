@@ -37,8 +37,7 @@ class load_data:
             im = Image.open(self.path2 + self.image_list2[i])
             im = im.convert("RGB")
             data = np.asarray(im)
-            try:
-                # self.Y.append(int(self.image_list[i].split('_')[2]))
+            try: #라벨이 잘못된 파일이 섞여있어 예외처리
                 P_label = []
 
                 P_label.append(0)
@@ -52,13 +51,11 @@ class load_data:
             except Exception as e:
                 print(e)
 
-        print("################################################")
         for i in range(len(self.image_list1)):
             im = Image.open(self.path1 + self.image_list1[i])
             im = im.convert("RGB")
             data = np.asarray(im)
             try:
-                # self.Y.append(int(self.image_list[i].split('_')[2]))
                 P_label = []
                 temp = self.image_list1[i].split('_')
                 print(temp[2])
@@ -101,9 +98,9 @@ class load_data:
 class Custom_CNN:
     def __init__(self):
         self.model = tf.keras.Sequential(self._build_layers())
-       # sgd = tf.keras.optimizers.SGD(lr=0.001,decay=1e-6, momentum=0.5)
-        adam = tf.keras.optimizers.Adam(lr=0.00001)
-        self.model.compile(optimizer=adam,  loss=self._my_loss, metrics=[self._average_acc, self._left_eye_acc, self._right_eye_acc, self._nose_acc, self._mouth_acc])
+        #sgd = tf.keras.optimizers.SGD(lr=0.0001,decay=1e-6, momentum=0.9)
+        self.adam = tf.keras.optimizers.Adam(lr=0.000008)
+        self.model.compile(optimizer=self.adam,  loss=self._my_loss, metrics=[self._average_acc, self._left_eye_acc, self._right_eye_acc, self._nose_acc, self._mouth_acc])
 
     def _my_loss(self, y_true, y_pred):
         result = 0
@@ -121,36 +118,36 @@ class Custom_CNN:
     def _build_layers(self):
         layers = [
             tf.keras.layers.Conv2D(32, (3,3), padding='SAME', input_shape=(600,600,3)),
-            tf.keras.layers.BatchNormalization(),
+            #tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation('relu'),
             tf.keras.layers.Conv2D(32, (3, 3), padding='SAME'),
-            tf.keras.layers.BatchNormalization(),
+            #tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation('relu'),
             tf.keras.layers.MaxPooling2D((2, 2), (2, 2), padding='SAME'),
 
             tf.keras.layers.Conv2D(64, (3, 3), padding='SAME'),
-            tf.keras.layers.BatchNormalization(),
+            #tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation('relu'),
             tf.keras.layers.Conv2D(64, (3, 3), padding='SAME'),
-            tf.keras.layers.BatchNormalization(),
+            #tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation('relu'),
             tf.keras.layers.MaxPooling2D((2, 2), (2, 2), padding='SAME'),
 
             tf.keras.layers.Conv2D(128, (3, 3), padding='SAME'),
-            tf.keras.layers.BatchNormalization(),
+            #tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation('relu'),
             tf.keras.layers.Conv2D(128, (3, 3), padding='SAME'),
-            tf.keras.layers.BatchNormalization(),
+            #tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation('relu'),
             tf.keras.layers.Conv2D(128, (3, 3), padding='SAME'),
-            tf.keras.layers.BatchNormalization(),
+            #tf.keras.layers.BatchNormalization(),
             tf.keras.layers.Activation('relu'),
             tf.keras.layers.MaxPooling2D((2, 2), (2, 2), padding='SAME'),
 
             tf.keras.layers.Flatten(),
-            tf.keras.layers.Dropout(0.25),
+            #tf.keras.layers.Dropout(0.25),
             tf.keras.layers.Dense(60, activation='relu'),
-            tf.keras.layers.Dropout(0.25),
+            #tf.keras.layers.Dropout(0.25),
             tf.keras.layers.Dense(4,activation='sigmoid')
         ]
         return layers
@@ -163,7 +160,7 @@ class Custom_CNN:
         total_acc = total_acc + self._mouth_acc(y_true, y_pred)
         return total_acc/4.
 
-    def _left_eye_acc(self,y_true,y_pred):
+    def _left_eye_acc(self, y_true, y_pred):
 
         y_true = tf.split(y_true, 4, 1)
         y_pred = tf.split(y_pred, 4, 1)
@@ -196,7 +193,6 @@ class Custom_CNN:
 
     def evaluate(self, x, t):
         return self.model.evaluate(x,t)
-
 def main():
     path = './face_data.npy'
     if os.path.isfile(path):
@@ -208,11 +204,12 @@ def main():
 
     X_train = (X_train.astype('float32') / 255.).reshape(-1, 600, 600, 3)
     X_test = (X_test.astype('float32') / 255.).reshape(-1, 600, 600, 3)
+    X_train, X_val, Y_train, Y_val = train_test_split(X_train, Y_train, test_size=0.2)
     #print(Y_train) #1428,4
     cnn = Custom_CNN()
     print(cnn.model.summary())
 
-    cnn.fit(X_train,Y_train,100,X_test,Y_test)
+    cnn.fit(X_train,Y_train,50,X_val,Y_val)
     his = cnn.history
     plt.figure(figsize=(20,10))
     plt.subplot(1,2,1)
@@ -224,7 +221,7 @@ def main():
     plt.ylabel('loss')
     plt.xlabel('epoch')
     plt.legend(
-        ['loss', 'val_loss', 'left_eye_acc', 'total_acc', 'val_total_acc'], loc='upper left')
+        ['loss', 'val_loss', 'total_acc', 'val_total_acc'], loc='upper left')
 
 
     plt.subplot(1, 2, 2)
@@ -244,10 +241,19 @@ def main():
     plt.xlabel('epoch')
 
 
-    plt.legend([ 'val_left_eye_acc', 'right_eye_acc', 'val_right_eye_acc', 'nose_acc', 'val_nose_acc'
+    plt.legend(['left_eye_acc' ,'val_left_eye_acc', 'right_eye_acc', 'val_right_eye_acc', 'nose_acc', 'val_nose_acc'
                 ,'mouth_acc','var_mouth_acc'], loc='upper left')
     plt.show()
     plt.savefig("fake_face.jpg")
+
+
+
+
+    cnn.model = tf.keras.models.load_model('./best.model',custom_objects={'_my_loss':cnn._my_loss,'_average_acc':cnn._average_acc,
+                                                                          '_left_eye_acc':cnn._left_eye_acc,'_right_eye_acc':cnn._right_eye_acc
+                                                                          ,'_nose_acc':cnn._nose_acc, '_mouth_acc':cnn._mouth_acc,'adam':cnn.adam})
+
+    print(cnn.evaluate(X_test,Y_test))
 
 
 if __name__ == '__main__':
